@@ -1,5 +1,7 @@
 # ytdl
 
+[![CI](https://github.com/RussellJamesBello/ytdl-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/RussellJamesBello/ytdl-cli/actions/workflows/ci.yml)
+
 A small command-line tool for downloading YouTube videos as **MP3** or **MP4**, one at a time or in bulk from a CSV file.
 
 It's a thin, opinionated wrapper around [yt-dlp](https://github.com/yt-dlp/yt-dlp), which handles talking to YouTube, and [ffmpeg](https://ffmpeg.org/), which handles merging and conversion.
@@ -210,6 +212,7 @@ Project layout:
 
 ```
 ytdl-cli/
+├── .github/workflows/  # CI: lint, type-check and tests on every push
 ├── mise.toml           # pins uv for mise users
 ├── pyproject.toml
 ├── uv.lock
