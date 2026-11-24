@@ -11,6 +11,7 @@ from ytdl.downloader import (
     Status,
     build_options,
     clean_error,
+    normalize_name_template,
     resolution_note,
 )
 
@@ -69,6 +70,43 @@ def test_mp4_options_prefer_h264_aac_up_to_requested_resolution(tmp_path):
     assert options["merge_output_format"] == "mp4"
     assert "postprocessors" not in options
     assert "writethumbnail" not in options
+
+
+def test_name_template_sets_output_path(tmp_path):
+    options = build_options(settings(tmp_path, name_template="%(uploader)s/%(title)s"))
+    assert options["outtmpl"]["default"] == str(tmp_path / "%(uploader)s" / "%(title)s.%(ext)s")
+
+
+@pytest.mark.parametrize(
+    ("template", "expected"),
+    [
+        ("%(title)s", "%(title)s"),
+        ("  %(uploader)s - %(title)s  ", "%(uploader)s - %(title)s"),
+        ("%(title)s.%(ext)s", "%(title)s"),
+        ("%(uploader)s/%(title)s", "%(uploader)s/%(title)s"),
+        ("%(upload_date>%Y)s %(title)s", "%(upload_date>%Y)s %(title)s"),
+    ],
+)
+def test_valid_name_templates(template, expected):
+    assert normalize_name_template(template) == expected
+
+
+@pytest.mark.parametrize(
+    ("template", "message"),
+    [
+        ("", "can't be empty"),
+        (".%(ext)s", "can't be empty"),
+        ("my song", "at least one field"),
+        ("/music/%(title)s", "use --save-path"),
+        ("~/music/%(title)s", "use --save-path"),
+        ("../%(title)s", "outside the save folder"),
+        ("%(title", "incomplete format key"),
+        ("%(title)z", "unsupported format"),
+    ],
+)
+def test_invalid_name_templates(template, message):
+    with pytest.raises(ValueError, match=message):
+        normalize_name_template(template)
 
 
 def test_quiet_by_default(tmp_path):
@@ -211,6 +249,16 @@ def test_yt_dlp_output_is_silenced_unless_verbose(tmp_path, fake_ydl):
 
     run(tmp_path, fake_ydl, verbose=True)
     assert "logger" not in fake_ydl.last_options
+
+
+def test_skip_check_uses_name_template(tmp_path, fake_ydl):
+    fake_ydl.info = {"title": "Song", "uploader": "Band", "ext": "webm"}
+    (tmp_path / "Band - Song.mp3").touch()
+
+    result, _ = run(tmp_path, fake_ydl, name_template="%(uploader)s - %(title)s")
+
+    assert result.status is Status.SKIPPED
+    assert result.path == tmp_path / "Band - Song.mp3"
 
 
 def test_titles_with_dots_keep_their_full_name(tmp_path, fake_ydl):

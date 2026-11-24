@@ -13,7 +13,16 @@ from rich.markup import escape
 from yt_dlp.version import __version__ as yt_dlp_version
 
 from ytdl.csv_loader import CsvError, load_urls
-from ytdl.downloader import Downloader, Result, Settings, Status, has_js_runtime, missing_tools
+from ytdl.downloader import (
+    DEFAULT_NAME_TEMPLATE,
+    Downloader,
+    Result,
+    Settings,
+    Status,
+    has_js_runtime,
+    missing_tools,
+    normalize_name_template,
+)
 
 DEFAULT_AUDIO_QUALITY = 192
 DEFAULT_VIDEO_QUALITY = 720
@@ -95,6 +104,19 @@ def ytdl(
         Path,
         typer.Option("--save-path", metavar="DIR", file_okay=False, help="Folder to save downloads in."),
     ] = DEFAULT_SAVE_PATH,
+    name_template: Annotated[
+        str,
+        typer.Option(
+            "--name-template",
+            metavar="TEMPLATE",
+            show_default=False,
+            help=(
+                'File name pattern using yt-dlp fields, e.g. "%(uploader)s - %(title)s". '
+                "The extension is added for you. Use / for subfolders. "
+                f'Default: "{DEFAULT_NAME_TEMPLATE}".'
+            ),
+        ),
+    ] = DEFAULT_NAME_TEMPLATE,
     verbose: Annotated[
         bool,
         typer.Option("--verbose", help="Show yt-dlp's full output, for diagnosing failed downloads."),
@@ -132,6 +154,11 @@ def ytdl(
         assert url is not None  # guaranteed by the exactly-one check above
         urls = [url.strip()]
 
+    try:
+        name_template = normalize_name_template(name_template)
+    except ValueError as error:
+        raise typer.BadParameter(str(error), param_hint="'--name-template'") from error
+
     if missing := missing_tools():
         err_console.print(
             f"[red]Error:[/red] {' and '.join(missing)} not found. ytdl needs ffmpeg to convert "
@@ -158,6 +185,7 @@ def ytdl(
         audio_quality=int(audio_quality.value) if audio_quality else DEFAULT_AUDIO_QUALITY,
         video_quality=int(video_quality.value) if video_quality else DEFAULT_VIDEO_QUALITY,
         save_path=save_path,
+        name_template=name_template,
         verbose=verbose,
     )
     downloader = Downloader(settings, console)
@@ -168,7 +196,7 @@ def ytdl(
         for number, video_url in enumerate(urls, start=1):
             label = f"[{number}/{len(urls)}] " if bulk else ""
             result = downloader.download(video_url, label)
-            _print_result(console, result, label)
+            _print_result(console, result, label, save_path)
             results.append(result)
     except KeyboardInterrupt:
         err_console.print("\nCancelled.")
@@ -183,15 +211,23 @@ def _warn(console: Console, message: str) -> None:
     console.print(f"[yellow]Warning:[/yellow] {escape(message)}")
 
 
-def _print_result(console: Console, result: Result, label: str) -> None:
+def _print_result(console: Console, result: Result, label: str, save_path: Path) -> None:
     label = escape(label)
-    name = escape(result.path.name if result.path else result.url)
+    name = escape(_display_path(result.path, save_path) if result.path else result.url)
     if result.status is Status.DOWNLOADED:
         console.print(f"{label}[green]✓[/green] {name}")
     elif result.status is Status.SKIPPED:
         console.print(f"{label}[dim]•[/dim] {name} [dim]already exists, skipped[/dim]")
     else:
         console.print(f"{label}[red]✗[/red] {escape(result.url)} [red]— {escape(result.error or '')}[/red]")
+
+
+def _display_path(path: Path, save_path: Path) -> str:
+    # Relative to the save folder, so subfolders from --name-template are visible.
+    try:
+        return str(path.relative_to(save_path))
+    except ValueError:
+        return path.name
 
 
 def _print_summary(console: Console, results: list[Result]) -> None:

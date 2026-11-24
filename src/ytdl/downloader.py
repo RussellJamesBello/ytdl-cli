@@ -32,6 +32,7 @@ JS_RUNTIMES: dict[str, dict[str, str]] = {"deno": {}, "node": {}, "bun": {}, "qu
 JS_RUNTIME_EXECUTABLES = ("deno", "node", "bun", "qjs")
 
 MAX_TITLE_LENGTH = 50
+DEFAULT_NAME_TEMPLATE = "%(title)s"
 
 # Audio types and the YouTube stream to start from. M4A (AAC) and Opus match what
 # YouTube serves, so ffmpeg just copies the audio into the new file; MP3 is re-encoded.
@@ -61,6 +62,7 @@ class Settings:
     audio_quality: int  # kbps, used for mp3 only
     video_quality: int  # maximum resolution, used for mp4
     save_path: Path
+    name_template: str = DEFAULT_NAME_TEMPLATE  # yt-dlp output template, without extension
     verbose: bool = False  # show yt-dlp's own output instead of ytdl's progress bar
 
 
@@ -81,10 +83,32 @@ def has_js_runtime() -> bool:
     return any(shutil.which(executable) for executable in JS_RUNTIME_EXECUTABLES)
 
 
+def normalize_name_template(template: str) -> str:
+    """Check a --name-template and return it without any trailing extension field.
+
+    Raises ValueError with a user-facing message if the template can't be used.
+    """
+    template = template.strip().removesuffix(".%(ext)s")
+    if not template:
+        raise ValueError("the template can't be empty.")
+    if "%(" not in template:
+        raise ValueError(
+            "the template needs at least one field, such as %(title)s, "
+            "or every download would get the same file name."
+        )
+    if Path(template).is_absolute() or template.startswith("~"):
+        raise ValueError("use --save-path to choose the folder; the template is relative to it.")
+    if ".." in Path(template).parts:
+        raise ValueError("the template can't point outside the save folder with '..'.")
+    if error := YoutubeDL.validate_outtmpl(f"{template}.%(ext)s"):
+        raise ValueError(f"{error}.")
+    return template
+
+
 def build_options(settings: Settings) -> dict[str, Any]:
     """Translate ytdl settings into yt-dlp options."""
     options: dict[str, Any] = {
-        "outtmpl": {"default": str(settings.save_path / "%(title)s.%(ext)s")},
+        "outtmpl": {"default": str(settings.save_path / f"{settings.name_template}.%(ext)s")},
         # A watch URL with &list=... downloads just the video, not the playlist.
         "noplaylist": True,
         # Don't resolve every entry of a playlist/channel URL; we reject those anyway.

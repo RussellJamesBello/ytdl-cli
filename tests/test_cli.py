@@ -141,6 +141,35 @@ def test_defaults(tmp_path):
     assert (tmp_path / "ytdl-downloads").is_dir()
 
 
+def test_name_template():
+    result = invoke(
+        "--url=https://youtu.be/abc", "--type=mp3", "--name-template=%(uploader)s - %(title)s.%(ext)s"
+    )
+    assert result.exit_code == 0, result.output
+    assert downloader().settings.name_template == "%(uploader)s - %(title)s"
+
+
+def test_result_shows_subfolder(monkeypatch):
+    def download(self, url, label=""):
+        return Result(url, Status.DOWNLOADED, self.settings.save_path / "Band" / "Song.mp3")
+
+    monkeypatch.setattr(FakeDownloader, "download", download)
+    result = invoke("--url=https://youtu.be/abc", "--type=mp3", "--name-template=%(uploader)s/%(title)s")
+    assert "✓ Band/Song.mp3" in result.output
+
+
+def test_default_name_template():
+    invoke("--url=https://youtu.be/abc", "--type=mp3")
+    assert downloader().settings.name_template == "%(title)s"
+
+
+def test_invalid_name_template():
+    result = invoke("--url=https://youtu.be/abc", "--type=mp3", "--name-template=song")
+    assert result.exit_code == 2
+    assert "at least one field" in result.output
+    assert FakeDownloader.instances == []
+
+
 def test_verbose_flag():
     invoke("--url=https://youtu.be/abc", "--type=mp3")
     invoke("--url=https://youtu.be/abc", "--type=mp3", "--verbose")

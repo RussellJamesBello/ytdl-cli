@@ -88,6 +88,7 @@ ytdl (--url=<URL> | --csv-list=<FILE>) --type=<mp3|m4a|opus|mp4> [options]
 | `--audio-quality` | `320`, `256`, `192`, `128` | `192` | MP3 bitrate in kbps. Only applies to `--type=mp3`. |
 | `--video-quality` | `1080`, `720`, `360` | `720` | Maximum video height in pixels. Only applies to `--type=mp4`. |
 | `--save-path` | Directory path | `./ytdl-downloads` | Where files are saved. Created if it doesn't exist. |
+| `--name-template` | yt-dlp template | `%(title)s` | How files are named. The extension is added for you. See [File names](#behaviour-details). |
 | `--verbose` | — | off | Show yt-dlp's full output in place of the progress bar. Use it when a download fails and the reason isn't clear. |
 | `--version` | — | — | Print the ytdl and yt-dlp versions, then exit. |
 
@@ -117,6 +118,12 @@ Download a video in 1080p:
 
 ```bash
 ytdl --url="https://www.youtube.com/watch?v=VIDEO_ID" --type=mp4 --video-quality=1080
+```
+
+Name files "Artist - Title" and sort them into a folder per channel:
+
+```bash
+ytdl --url="https://youtu.be/VIDEO_ID" --type=mp3 --name-template="%(uploader)s/%(uploader)s - %(title)s"
 ```
 
 Download everything in a CSV as 720p MP4s:
@@ -154,7 +161,18 @@ https://www.youtube.com/watch?v=VIDEO_ID_4
 
 ## Behaviour details
 
-**File names.** Files are named after the video title, e.g. `My Favourite Song.mp3`. Characters that aren't allowed in file names are cleaned up.
+**File names.** By default, files are named after the video title, e.g. `My Favourite Song.mp3`. Characters that aren't allowed in file names are cleaned up.
+
+Change this with `--name-template`, using [yt-dlp's output template fields](https://github.com/yt-dlp/yt-dlp#output-template). Useful ones:
+
+| Field | Example |
+|---|---|
+| `%(title)s` | `Me at the zoo` |
+| `%(uploader)s` | `jawed` (the channel name) |
+| `%(upload_date>%Y)s` | `2005` (any [strftime](https://strftime.org/) format works after `>`) |
+| `%(id)s` | `jNQXAC9IVRw` (the video ID, which is always unique) |
+
+Use `/` to sort files into subfolders of the save folder, e.g. `%(uploader)s/%(title)s`. The template must include at least one field; otherwise every video would get the same name, and every download after the first would be skipped as already existing. Templates are checked before anything downloads.
 
 **Tags and cover art.** Audio files (MP3, M4A, Opus) are tagged with the video title, the artist (the channel name when YouTube doesn't list one), the upload date and the video's URL. The video thumbnail is embedded as cover art.
 
