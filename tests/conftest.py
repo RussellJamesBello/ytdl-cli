@@ -1,4 +1,13 @@
+import os
+
 import pytest
+
+# Typer forces colored "terminal" output when it sees GITHUB_ACTIONS, FORCE_COLOR or
+# PY_COLORS, which puts ANSI codes in the middle of the text the tests check. Typer reads
+# these when it's imported, so this has to run here, before any test imports ytdl.
+os.environ["_TYPER_FORCE_DISABLE_TERMINAL"] = "1"
+for variable in ("FORCE_COLOR", "PY_COLORS"):
+    os.environ.pop(variable, None)
 
 
 @pytest.fixture(autouse=True)
