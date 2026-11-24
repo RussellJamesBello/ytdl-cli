@@ -311,6 +311,12 @@ ytdl-cli/
 
 ---
 
+## License
+
+[MIT](LICENSE). You're free to use, modify and share the code, as long as the copyright notice comes with it.
+
+---
+
 ## Disclaimer
 
 This tool is for personal use. Downloading content from YouTube may violate [YouTube's Terms of Service](https://www.youtube.com/t/terms) and copyright law depending on the content and what you do with it. Only download videos you own, have permission to download, or that are licensed for reuse (e.g. Creative Commons). You are responsible for how you use it.
