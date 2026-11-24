@@ -21,7 +21,7 @@ ytdl --url="https://www.youtube.com/watch?v=VIDEO_ID" --type=mp3
 - MP4 output at 360p, 720p or 1080p, using H.264 + AAC so it plays on any device
 - Falls back to the best available resolution if the one you asked for doesn't exist
 - Skips files you've already downloaded, so re-running a batch only fetches what's missing
-- Bulk mode keeps going when one video fails and prints a summary at the end
+- Bulk mode keeps going when one video fails, prints a summary, and saves the failures to a CSV you can retry
 
 ---
 
@@ -195,6 +195,15 @@ Done: 8 downloaded, 1 skipped (already exists), 2 failed
   ✗ https://www.youtube.com/watch?v=VIDEO_ID_5 — Video unavailable
   ✗ https://youtu.be/VIDEO_ID_9 — Private video
 ```
+
+**Retrying failures.** When a bulk download has failures, ytdl saves them to `ytdl-failed.csv` in the save folder and prints a command that retries just those videos with the same settings:
+
+```
+Failed URLs saved to ytdl-downloads/ytdl-failed.csv. Retry them with:
+  ytdl --csv-list=ytdl-downloads/ytdl-failed.csv --type=mp3 --audio-quality=192
+```
+
+The file lists each URL with its error, and the same retry command is in a comment at the top. Each bulk run with failures overwrites it, and a later run with no failures deletes it. ytdl only deletes failed lists it wrote itself, never your own CSVs.
 
 ### Exit codes
 

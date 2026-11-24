@@ -293,3 +293,54 @@ def test_bulk_all_succeed(tmp_path):
     result = invoke(f"--csv-list={csv_path}", "--type=mp3")
     assert result.exit_code == 0
     assert "Done: 2 downloaded, 0 skipped (already exists), 0 failed" in result.output
+    assert not (tmp_path / "ytdl-downloads" / "ytdl-failed.csv").exists()
+
+
+def test_bulk_failures_are_saved_for_retry(tmp_path):
+    csv_path = write_csv(tmp_path, "https://youtu.be/one\nhttps://youtu.be/bad\n")
+
+    result = invoke(f"--csv-list={csv_path}", "--type=mp4", "--video-quality=1080")
+
+    failed_list = tmp_path / "ytdl-downloads" / "ytdl-failed.csv"
+    command = "ytdl --csv-list=ytdl-downloads/ytdl-failed.csv --type=mp4 --video-quality=1080"
+    assert "Failed URLs saved to ytdl-downloads/ytdl-failed.csv. Retry them with:" in result.output
+    assert command in result.output
+    assert f"# Retry them with: {command}" in failed_list.read_text()
+    assert "https://youtu.be/bad,Video unavailable" in failed_list.read_text()
+
+
+def test_retry_command_keeps_non_default_settings(tmp_path):
+    csv_path = write_csv(tmp_path, "https://youtu.be/bad\n")
+
+    invoke(
+        f"--csv-list={csv_path}",
+        "--type=mp3",
+        "--save-path=My Music",
+        "--name-template=%(uploader)s - %(title)s",
+    )
+
+    content = (tmp_path / "My Music" / "ytdl-failed.csv").read_text()
+    assert (
+        "ytdl '--csv-list=My Music/ytdl-failed.csv' --type=mp3 --audio-quality=192 "
+        "'--save-path=My Music' '--name-template=%(uploader)s - %(title)s'"
+    ) in content
+
+
+def test_rerun_without_failures_removes_old_failed_list(tmp_path):
+    csv_path = write_csv(tmp_path, "https://youtu.be/bad\n")
+    invoke(f"--csv-list={csv_path}", "--type=mp3")
+    failed_list = tmp_path / "ytdl-downloads" / "ytdl-failed.csv"
+    assert failed_list.exists()
+
+    result = invoke(f"--csv-list={failed_list}", "--type=mp3")
+    assert result.exit_code == 1  # still failing: list rewritten
+    assert failed_list.exists()
+
+    write_csv(tmp_path, "https://youtu.be/one\n")
+    invoke(f"--csv-list={csv_path}", "--type=mp3")
+    assert not failed_list.exists()
+
+
+def test_single_url_failure_does_not_write_failed_list(tmp_path):
+    invoke("--url=https://youtu.be/bad", "--type=mp3")
+    assert not (tmp_path / "ytdl-downloads" / "ytdl-failed.csv").exists()

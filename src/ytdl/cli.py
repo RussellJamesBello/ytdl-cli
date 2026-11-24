@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 from enum import StrEnum
 from importlib.metadata import version as package_version
 from pathlib import Path
@@ -12,7 +13,7 @@ from rich.console import Console
 from rich.markup import escape
 from yt_dlp.version import __version__ as yt_dlp_version
 
-from ytdl.csv_loader import CsvError, load_urls
+from ytdl.csv_loader import FAILED_LIST_NAME, CsvError, load_urls, remove_failed_list, save_failed_list
 from ytdl.downloader import (
     DEFAULT_NAME_TEMPLATE,
     Cancelled,
@@ -209,6 +210,7 @@ def ytdl(
 
     if bulk:
         _print_summary(console, results)
+        _update_failed_list(console, err_console, results, settings)
     raise typer.Exit(1 if any(r.status is Status.FAILED for r in results) else 0)
 
 
@@ -247,6 +249,39 @@ def _print_summary(console: Console, results: list[Result]) -> None:
     )
     for result in failed:
         console.print(f"  [red]✗[/red] {escape(result.url)} — {escape(result.error or '')}")
+
+
+def _update_failed_list(
+    console: Console, err_console: Console, results: list[Result], settings: Settings
+) -> None:
+    path = settings.save_path / FAILED_LIST_NAME
+    failures = [(r.url, r.error or "") for r in results if r.status is Status.FAILED]
+    if not failures:
+        remove_failed_list(path)
+        return
+
+    command = _retry_command(settings, path)
+    try:
+        save_failed_list(path, failures, command)
+    except OSError as error:
+        _warn(err_console, f"Couldn't save the failed URLs to {path}: {error.strerror}")
+        return
+    console.print(f"\nFailed URLs saved to {escape(str(path))}. Retry them with:")
+    console.print(f"  {escape(command)}", soft_wrap=True)
+
+
+def _retry_command(settings: Settings, csv_path: Path) -> str:
+    """The ytdl command that repeats this run's settings for the failed list."""
+    parts = ["ytdl", f"--csv-list={csv_path}", f"--type={settings.file_type}"]
+    if settings.file_type == FileType.MP3:
+        parts.append(f"--audio-quality={settings.audio_quality}")
+    if settings.file_type == FileType.MP4:
+        parts.append(f"--video-quality={settings.video_quality}")
+    if settings.save_path != DEFAULT_SAVE_PATH:
+        parts.append(f"--save-path={settings.save_path}")
+    if settings.name_template != DEFAULT_NAME_TEMPLATE:
+        parts.append(f"--name-template={settings.name_template}")
+    return shlex.join(parts)
 
 
 def main() -> None:

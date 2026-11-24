@@ -1,9 +1,15 @@
-"""Reading the list of URLs given to --csv-list."""
+"""Reading URL lists for --csv-list, and writing the list of failed downloads."""
 
 from __future__ import annotations
 
 import csv
+from collections.abc import Iterable
+from datetime import datetime
 from pathlib import Path
+
+FAILED_LIST_NAME = "ytdl-failed.csv"
+# First line of every failed list, so ytdl only ever deletes lists it wrote itself.
+_FAILED_LIST_MARKER = "# ytdl:"
 
 
 class CsvError(Exception):
@@ -35,3 +41,26 @@ def load_urls(path: Path) -> list[str]:
     if not urls:
         raise CsvError(f"No URLs found in {path}.")
     return urls
+
+
+def save_failed_list(path: Path, failures: Iterable[tuple[str, str]], retry_command: str) -> None:
+    """Write failed URLs and their errors as a CSV that --csv-list can read back."""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+    with path.open("w", newline="", encoding="utf-8") as file:
+        file.write(f"{_FAILED_LIST_MARKER} these videos failed to download on {timestamp}.\n")
+        file.write(f"# Retry them with: {retry_command}\n")
+        writer = csv.writer(file)
+        writer.writerow(["url", "error"])
+        writer.writerows(failures)
+
+
+def remove_failed_list(path: Path) -> bool:
+    """Delete a failed list left by an earlier run. Returns whether one was removed."""
+    try:
+        with path.open(encoding="utf-8") as file:
+            if not file.readline().startswith(_FAILED_LIST_MARKER):
+                return False
+        path.unlink()
+    except (OSError, UnicodeDecodeError):
+        return False
+    return True
