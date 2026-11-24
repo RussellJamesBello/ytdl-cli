@@ -53,15 +53,21 @@ brew install deno
 ## Installation
 
 ```bash
-git clone <repo-url> ytdl-cli
-cd ytdl-cli
-uv tool install .
+uv tool install git+https://github.com/RussellJamesBello/ytdl-cli
 ```
 
 This puts the `ytdl` command on your `PATH`. Check it worked:
 
 ```bash
-ytdl --help
+ytdl --version
+```
+
+To work on the code instead, clone it and install from your copy:
+
+```bash
+git clone https://github.com/RussellJamesBello/ytdl-cli.git
+cd ytdl-cli
+uv tool install .
 ```
 
 To uninstall:
