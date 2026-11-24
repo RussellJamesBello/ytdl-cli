@@ -1,3 +1,4 @@
+from importlib.metadata import version
 from pathlib import Path
 from typing import ClassVar
 
@@ -58,7 +59,7 @@ def write_csv(tmp_path, content):
 def test_version_needs_no_other_options():
     result = invoke("--version")
     assert result.exit_code == 0
-    assert result.output.startswith("ytdl 0.1.0 (yt-dlp 20")
+    assert result.output.startswith(f"ytdl {version('ytdl-cli')} (yt-dlp 20")
     assert FakeDownloader.instances == []
 
 
