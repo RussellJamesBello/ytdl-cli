@@ -181,14 +181,24 @@ def test_save_path_that_is_a_file(tmp_path):
 @pytest.mark.parametrize(
     ("args", "warning"),
     [
-        (["--type=mp4", "--audio-quality=320"], "--audio-quality only applies to --type=mp3"),
+        (["--type=mp4", "--audio-quality=320"], "--audio-quality only applies to --type=mp3, so"),
+        (["--type=m4a", "--audio-quality=320"], "--type=mp3 (m4a keeps YouTube's original audio)"),
+        (["--type=opus", "--audio-quality=128"], "--type=mp3 (opus keeps YouTube's original audio)"),
         (["--type=mp3", "--video-quality=1080"], "--video-quality only applies to --type=mp4"),
+        (["--type=opus", "--video-quality=1080"], "--video-quality only applies to --type=mp4"),
     ],
 )
 def test_warns_about_options_that_dont_apply(args, warning):
     result = invoke("--url=https://youtu.be/abc", *args)
     assert result.exit_code == 0
     assert warning in result.output
+
+
+@pytest.mark.parametrize("file_type", ["m4a", "opus", "OPUS"])
+def test_audio_types(file_type):
+    result = invoke("--url=https://youtu.be/abc", f"--type={file_type}")
+    assert result.exit_code == 0, result.output
+    assert downloader().settings.file_type == file_type.lower()
 
 
 def test_no_warning_when_options_match_type():

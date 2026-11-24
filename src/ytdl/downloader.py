@@ -33,8 +33,16 @@ JS_RUNTIME_EXECUTABLES = ("deno", "node", "bun", "qjs")
 
 MAX_TITLE_LENGTH = 50
 
+# Audio types and the YouTube stream to start from. M4A (AAC) and Opus match what
+# YouTube serves, so ffmpeg just copies the audio into the new file; MP3 is re-encoded.
+AUDIO_FORMATS = {
+    "mp3": "bestaudio/best",
+    "m4a": "bestaudio[ext=m4a]/bestaudio/best",
+    "opus": "bestaudio[acodec=opus]/bestaudio/best",
+}
+
 _POSTPROCESSOR_ACTIVITY = {
-    "ExtractAudio": "converting to MP3",
+    "ExtractAudio": "extracting audio",
     "Merger": "merging video and audio",
 }
 
@@ -47,8 +55,8 @@ class Status(Enum):
 
 @dataclass(frozen=True)
 class Settings:
-    file_type: str  # "mp3" or "mp4"
-    audio_quality: int  # kbps, used for mp3
+    file_type: str  # "mp3", "m4a", "opus" or "mp4"
+    audio_quality: int  # kbps, used for mp3 only
     video_quality: int  # maximum resolution, used for mp4
     save_path: Path
     verbose: bool = False  # show yt-dlp's own output instead of ytdl's progress bar
@@ -85,15 +93,16 @@ def build_options(settings: Settings) -> dict[str, Any]:
         "noprogress": not settings.verbose,
         "verbose": settings.verbose,
     }
-    if settings.file_type == "mp3":
+    if settings.file_type in AUDIO_FORMATS:
         options |= {
-            "format": "bestaudio/best",
-            "final_ext": "mp3",
+            "format": AUDIO_FORMATS[settings.file_type],
+            "final_ext": settings.file_type,
             "postprocessors": [
                 {
                     "key": "FFmpegExtractAudio",
-                    "preferredcodec": "mp3",
-                    "preferredquality": str(settings.audio_quality),
+                    "preferredcodec": settings.file_type,
+                    # Only MP3 is re-encoded, so only MP3 has a bitrate to choose.
+                    "preferredquality": str(settings.audio_quality) if settings.file_type == "mp3" else None,
                 }
             ],
         }

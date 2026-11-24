@@ -34,6 +34,19 @@ def test_mp3_options(tmp_path):
     assert options["noplaylist"] is True
 
 
+@pytest.mark.parametrize(("file_type", "format_spec"), [("m4a", "[ext=m4a]"), ("opus", "[acodec=opus]")])
+def test_m4a_and_opus_keep_original_audio(tmp_path, file_type, format_spec):
+    options = build_options(settings(tmp_path, file_type, audio_quality=320))
+
+    assert options["format"].startswith(f"bestaudio{format_spec}/")
+    assert options["final_ext"] == file_type
+    assert options["postprocessors"][0] == {
+        "key": "FFmpegExtractAudio",
+        "preferredcodec": file_type,
+        "preferredquality": None,
+    }
+
+
 def test_mp4_options_prefer_h264_aac_up_to_requested_resolution(tmp_path):
     options = build_options(settings(tmp_path, "mp4", video_quality=1080))
 
@@ -85,8 +98,9 @@ def test_resolution_note(tmp_path, info, expected):
         assert expected in note
 
 
-def test_no_resolution_note_for_mp3(tmp_path):
-    assert resolution_note({"height": 144}, settings(tmp_path, "mp3")) is None
+@pytest.mark.parametrize("file_type", ["mp3", "m4a", "opus"])
+def test_no_resolution_note_for_audio(tmp_path, file_type):
+    assert resolution_note({"height": 144}, settings(tmp_path, file_type)) is None
 
 
 # --- error messages ---------------------------------------------------------
@@ -197,6 +211,11 @@ def test_skips_when_file_already_exists(tmp_path, fake_ydl):
     assert result.status is Status.SKIPPED
     assert result.path == tmp_path / "Some Song.mp3"
     assert fake_ydl.downloads == []
+
+
+def test_opus_download_gets_opus_extension(tmp_path, fake_ydl):
+    result, _ = run(tmp_path, fake_ydl, file_type="opus")
+    assert result.path == tmp_path / "Some Song.opus"
 
 
 def test_existing_file_of_other_type_does_not_cause_skip(tmp_path, fake_ydl):

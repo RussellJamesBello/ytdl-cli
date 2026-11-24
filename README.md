@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/RussellJamesBello/ytdl-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/RussellJamesBello/ytdl-cli/actions/workflows/ci.yml)
 
-A small command-line tool for downloading YouTube videos as **MP3** or **MP4**, one at a time or in bulk from a CSV file.
+A small command-line tool for downloading YouTube videos as audio (**MP3**, **M4A** or **Opus**) or **MP4** video, one at a time or in bulk from a CSV file.
 
 It's a thin, opinionated wrapper around [yt-dlp](https://github.com/yt-dlp/yt-dlp), which handles talking to YouTube, and [ffmpeg](https://ffmpeg.org/), which handles merging and conversion.
 
@@ -16,6 +16,7 @@ ytdl --url="https://www.youtube.com/watch?v=VIDEO_ID" --type=mp3
 
 - Download a single video, or a whole list of URLs from a CSV file
 - MP3 output at 128, 192, 256 or 320 kbps
+- M4A or Opus output with YouTube's original audio copied as is: smaller files, no quality loss
 - MP4 output at 360p, 720p or 1080p, using H.264 + AAC so it plays on any device
 - Falls back to the best available resolution if the one you asked for doesn't exist
 - Skips files you've already downloaded, so re-running a batch only fetches what's missing
@@ -28,7 +29,7 @@ ytdl --url="https://www.youtube.com/watch?v=VIDEO_ID" --type=mp3
 | Dependency | Version | Why |
 |---|---|---|
 | Python | 3.11+ | Runtime |
-| [ffmpeg](https://ffmpeg.org/) | any recent | Converts audio to MP3 and merges the video and audio streams for MP4 |
+| [ffmpeg](https://ffmpeg.org/) | any recent | Converts and repackages audio, and merges the video and audio streams for MP4 |
 | [uv](https://docs.astral.sh/uv/) | any recent | Installs and runs the project |
 | A JavaScript runtime: [Deno](https://deno.com/), Node 22+, Bun or QuickJS | see left | YouTube makes clients run JavaScript before it hands over the video. yt-dlp runs it sandboxed. |
 
@@ -73,7 +74,7 @@ uv tool uninstall ytdl-cli
 ## Usage
 
 ```bash
-ytdl (--url=<URL> | --csv-list=<FILE>) --type=<mp3|mp4> [options]
+ytdl (--url=<URL> | --csv-list=<FILE>) --type=<mp3|m4a|opus|mp4> [options]
 ```
 
 ### Options
@@ -82,7 +83,7 @@ ytdl (--url=<URL> | --csv-list=<FILE>) --type=<mp3|mp4> [options]
 |---|---|---|---|
 | `--url` | YouTube video URL | — | A single video to download. Use either this or `--csv-list`. |
 | `--csv-list` | Path to a `.csv` file | — | A file of URLs to download in bulk. Use either this or `--url`. |
-| `--type` | `mp3`, `mp4` | **required** | Output file type. |
+| `--type` | `mp3`, `m4a`, `opus`, `mp4` | **required** | Output file type. `m4a` and `opus` are audio-only, like `mp3`. |
 | `--audio-quality` | `320`, `256`, `192`, `128` | `192` | MP3 bitrate in kbps. Only applies to `--type=mp3`. |
 | `--video-quality` | `1080`, `720`, `360` | `720` | Maximum video height in pixels. Only applies to `--type=mp4`. |
 | `--save-path` | Directory path | `./ytdl-downloads` | Where files are saved. Created if it doesn't exist. |
@@ -103,6 +104,12 @@ Download an MP3 at 320 kbps into your Music folder:
 
 ```bash
 ytdl --url="https://youtu.be/VIDEO_ID" --type=mp3 --audio-quality=320 --save-path=~/Music
+```
+
+Keep YouTube's original audio with no re-encoding (M4A suits Apple devices best; Opus gives the smallest files):
+
+```bash
+ytdl --url="https://youtu.be/VIDEO_ID" --type=m4a
 ```
 
 Download a video in 1080p:
@@ -156,7 +163,7 @@ https://www.youtube.com/watch?v=VIDEO_ID_4
 
 **Live streams.** Streams that are currently live are rejected, since they have no end. Once a stream has finished and YouTube has processed it, it downloads like any other video.
 
-**Options that don't apply.** Passing `--audio-quality` with `--type=mp4`, or `--video-quality` with `--type=mp3`, prints a warning and has no effect. The download still runs.
+**Options that don't apply.** Passing `--audio-quality` with anything other than `--type=mp3`, or `--video-quality` with anything other than `--type=mp4`, prints a warning and has no effect. The download still runs.
 
 **Bulk downloads.** Videos are downloaded one at a time, in the order they appear in the file. If one fails (private, removed, network error), the error is logged and the tool moves on to the next. A summary is printed at the end:
 
@@ -179,6 +186,8 @@ Done: 8 downloaded, 1 skipped (already exists), 2 failed
 ## A note on audio quality
 
 YouTube's own audio streams are about 128–160 kbps. Converting to a higher MP3 bitrate doesn't recover detail that isn't in the source; it only makes the file bigger. That's why the default is **192 kbps**, which sounds the same as 320 in practice at about 60% of the size. `320` is still available if you want it.
+
+If you don't specifically need MP3, use `--type=m4a` or `--type=opus`. They copy YouTube's audio stream into the file without re-encoding it, so you get exactly what YouTube serves, in a smaller file, with no generation loss. Both play in modern players and browsers. M4A is the safer choice for Apple devices and car stereos.
 
 ---
 

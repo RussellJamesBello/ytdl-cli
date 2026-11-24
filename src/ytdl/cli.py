@@ -22,6 +22,8 @@ DEFAULT_SAVE_PATH = Path("ytdl-downloads")
 
 class FileType(StrEnum):
     MP3 = "mp3"
+    M4A = "m4a"
+    OPUS = "opus"
     MP4 = "mp4"
 
 
@@ -47,7 +49,7 @@ def _show_version(value: bool) -> None:
         raise typer.Exit()
 
 
-@app.command(help="Download YouTube videos as MP3 or MP4.")
+@app.command(help="Download YouTube videos as audio (MP3, M4A, Opus) or MP4 video.")
 def ytdl(
     *,
     url: Annotated[
@@ -67,7 +69,11 @@ def ytdl(
     ] = None,
     file_type: Annotated[
         FileType,
-        typer.Option("--type", case_sensitive=False, help="Output file type."),
+        typer.Option(
+            "--type",
+            case_sensitive=False,
+            help="Output file type: mp3, m4a or opus for audio, mp4 for video.",
+        ),
     ],
     audio_quality: Annotated[
         AudioQuality | None,
@@ -111,9 +117,10 @@ def ytdl(
     if url is not None and not url.strip():
         raise typer.BadParameter("URL can't be empty.", param_hint="'--url'")
 
-    if file_type is FileType.MP4 and audio_quality is not None:
-        _warn(err_console, "--audio-quality only applies to --type=mp3, so it's being ignored.")
-    if file_type is FileType.MP3 and video_quality is not None:
+    if file_type is not FileType.MP3 and audio_quality is not None:
+        reason = "" if file_type is FileType.MP4 else f" ({file_type} keeps YouTube's original audio)"
+        _warn(err_console, f"--audio-quality only applies to --type=mp3{reason}, so it's being ignored.")
+    if file_type is not FileType.MP4 and video_quality is not None:
         _warn(err_console, "--video-quality only applies to --type=mp4, so it's being ignored.")
 
     if csv_list is not None:
