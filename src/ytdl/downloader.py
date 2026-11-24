@@ -51,6 +51,7 @@ class Settings:
     audio_quality: int  # kbps, used for mp3
     video_quality: int  # maximum resolution, used for mp4
     save_path: Path
+    verbose: bool = False  # show yt-dlp's own output instead of ytdl's progress bar
 
 
 @dataclass(frozen=True)
@@ -79,9 +80,10 @@ def build_options(settings: Settings) -> dict[str, Any]:
         # Don't resolve every entry of a playlist/channel URL; we reject those anyway.
         "extract_flat": "in_playlist",
         "js_runtimes": JS_RUNTIMES,
-        "quiet": True,
-        "no_warnings": True,
-        "noprogress": True,
+        "quiet": not settings.verbose,
+        "no_warnings": not settings.verbose,
+        "noprogress": not settings.verbose,
+        "verbose": settings.verbose,
     }
     if settings.file_type == "mp3":
         options |= {
@@ -156,20 +158,24 @@ class Downloader:
             TimeRemainingColumn(),
             console=self.console,
             transient=True,
-            # No progress bar when output is piped or redirected; just the result lines.
-            disable=not self.console.is_terminal,
+            # No bar when output is piped or redirected, or when yt-dlp prints its own.
+            disable=self.settings.verbose or not self.console.is_terminal,
         )
         task = progress.add_task(escape(f"{label}Fetching video info…"), total=None)
         hooks = _ProgressHooks(progress, task, label)
         options = build_options(self.settings) | {
-            "logger": _SilentLogger(),
             "progress_hooks": [hooks.on_download],
             "postprocessor_hooks": [hooks.on_postprocess],
         }
+        if self.settings.verbose:
+            quiet_stderr: contextlib.AbstractContextManager[object] = contextlib.nullcontext()
+        else:
+            options["logger"] = _SilentLogger()
+            # Some yt-dlp helpers print warnings straight to stderr, bypassing the logger.
+            quiet_stderr = contextlib.redirect_stderr(io.StringIO())
 
         try:
-            # Some yt-dlp helpers print warnings straight to stderr, bypassing the logger.
-            with progress, contextlib.redirect_stderr(io.StringIO()), self._ydl_class(options) as ydl:
+            with progress, quiet_stderr, self._ydl_class(options) as ydl:
                 info = ydl.extract_info(url, download=False)
                 if info.get("_type") == "playlist" or "entries" in info:
                     return Result(

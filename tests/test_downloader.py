@@ -15,8 +15,8 @@ from ytdl.downloader import (
 )
 
 
-def settings(tmp_path, file_type="mp3", audio_quality=192, video_quality=720):
-    return Settings(file_type, audio_quality, video_quality, tmp_path)
+def settings(tmp_path, file_type="mp3", audio_quality=192, video_quality=720, **extra):
+    return Settings(file_type, audio_quality, video_quality, tmp_path, **extra)
 
 
 # --- yt-dlp options ---------------------------------------------------------
@@ -40,6 +40,18 @@ def test_mp4_options_prefer_h264_aac_up_to_requested_resolution(tmp_path):
     assert options["format_sort"] == ["vcodec:h264", "res:1080", "acodec:aac"]
     assert options["merge_output_format"] == "mp4"
     assert "postprocessors" not in options
+
+
+def test_quiet_by_default(tmp_path):
+    options = build_options(settings(tmp_path))
+    assert options["quiet"] is True
+    assert options["verbose"] is False
+
+
+def test_verbose_options(tmp_path):
+    options = build_options(settings(tmp_path, verbose=True))
+    assert (options["quiet"], options["no_warnings"], options["noprogress"]) == (False, False, False)
+    assert options["verbose"] is True
 
 
 def test_node_is_enabled_alongside_deno(tmp_path):
@@ -111,9 +123,11 @@ class FakeYoutubeDL:
     info: ClassVar[dict[str, Any]] = {}
     error: ClassVar[Exception | None] = None
     downloads: ClassVar[list[dict[str, Any]]] = []
+    last_options: ClassVar[dict[str, Any]] = {}
 
     def __init__(self, options):
         self.options = options
+        FakeYoutubeDL.last_options = options
 
     def __enter__(self):
         return self
@@ -159,6 +173,14 @@ def test_downloads_and_reports_final_mp3_path(tmp_path, fake_ydl):
     assert result.status is Status.DOWNLOADED
     assert result.path == tmp_path / "Some Song.mp3"
     assert len(fake_ydl.downloads) == 1
+
+
+def test_yt_dlp_output_is_silenced_unless_verbose(tmp_path, fake_ydl):
+    run(tmp_path, fake_ydl)
+    assert "logger" in fake_ydl.last_options
+
+    run(tmp_path, fake_ydl, verbose=True)
+    assert "logger" not in fake_ydl.last_options
 
 
 def test_titles_with_dots_keep_their_full_name(tmp_path, fake_ydl):

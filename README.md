@@ -86,6 +86,7 @@ ytdl (--url=<URL> | --csv-list=<FILE>) --type=<mp3|mp4> [options]
 | `--audio-quality` | `320`, `256`, `192`, `128` | `192` | MP3 bitrate in kbps. Only applies to `--type=mp3`. |
 | `--video-quality` | `1080`, `720`, `360` | `720` | Maximum video height in pixels. Only applies to `--type=mp4`. |
 | `--save-path` | Directory path | `./ytdl-downloads` | Where files are saved. Created if it doesn't exist. |
+| `--verbose` | — | off | Show yt-dlp's full output in place of the progress bar. Use it when a download fails and the reason isn't clear. |
 | `--version` | — | — | Print the ytdl and yt-dlp versions, then exit. |
 
 You must pass **exactly one** of `--url` or `--csv-list`. Both `--flag=value` and `--flag value` work.
@@ -186,6 +187,8 @@ YouTube's own audio streams are about 128–160 kbps. Converting to a higher MP3
 **`ffmpeg not found`**: Install ffmpeg (`brew install ffmpeg` on macOS) and make sure it's on your `PATH`.
 
 **`No JavaScript runtime found`**: Without one, YouTube only offers some formats, so downloads may fail or come out at lower quality. Install Deno (`brew install deno`), or make sure Node 22 or newer is on your `PATH`.
+
+**A download fails and the message doesn't explain why**: Run the same command again with `--verbose` to see everything yt-dlp is doing. Include that output if you report a problem.
 
 **Downloads suddenly start failing for every video**: YouTube changes things regularly, and an outdated yt-dlp is the most common cause. Upgrade it:
 

@@ -89,6 +89,10 @@ def ytdl(
         Path,
         typer.Option("--save-path", metavar="DIR", file_okay=False, help="Folder to save downloads in."),
     ] = DEFAULT_SAVE_PATH,
+    verbose: Annotated[
+        bool,
+        typer.Option("--verbose", help="Show yt-dlp's full output, for diagnosing failed downloads."),
+    ] = False,
     version: Annotated[
         bool,
         typer.Option(
@@ -147,6 +151,7 @@ def ytdl(
         audio_quality=int(audio_quality.value) if audio_quality else DEFAULT_AUDIO_QUALITY,
         video_quality=int(video_quality.value) if video_quality else DEFAULT_VIDEO_QUALITY,
         save_path=save_path,
+        verbose=verbose,
     )
     downloader = Downloader(settings, console)
     bulk = csv_list is not None

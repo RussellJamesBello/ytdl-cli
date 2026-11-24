@@ -141,6 +141,12 @@ def test_defaults(tmp_path):
     assert (tmp_path / "ytdl-downloads").is_dir()
 
 
+def test_verbose_flag():
+    invoke("--url=https://youtu.be/abc", "--type=mp3")
+    invoke("--url=https://youtu.be/abc", "--type=mp3", "--verbose")
+    assert [d.settings.verbose for d in FakeDownloader.instances] == [False, True]
+
+
 def test_explicit_settings(tmp_path):
     result = invoke(
         "--url",
