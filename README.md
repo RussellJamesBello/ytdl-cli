@@ -136,6 +136,25 @@ ytdl --csv-list=./playlist.csv --type=mp4
 
 ---
 
+## Config file
+
+To avoid typing the same options every time, put your own defaults in `~/.config/ytdl/config.toml`:
+
+```toml
+audio_quality = 320                         # 320, 256, 192 or 128
+video_quality = 1080                        # 1080, 720 or 360
+save_path = "~/Music/YouTube"               # relative paths are relative to where you run ytdl
+name_template = "%(uploader)s - %(title)s"
+```
+
+Every setting is optional. A flag on the command line always wins over the config file, and the config file wins over ytdl's built-in defaults. The file is checked when ytdl starts; a typo or invalid value stops it with a message naming the problem before anything downloads.
+
+`--type` can't be set here, so you always choose the format explicitly.
+
+The file is looked for at `$XDG_CONFIG_HOME/ytdl/config.toml` if `XDG_CONFIG_HOME` is set. To use a different file, point `YTDL_CONFIG` at it, e.g. `YTDL_CONFIG=~/podcasts.toml ytdl ...`.
+
+---
+
 ## CSV format
 
 Put one URL per row, in the first column. The tool:
@@ -211,7 +230,7 @@ The file lists each URL with its error, and the same retry command is in a comme
 |---|---|
 | `0` | Every video was downloaded or already existed |
 | `1` | At least one video failed to download, or ffmpeg isn't installed |
-| `2` | Invalid usage, e.g. missing `--type`, both `--url` and `--csv-list`, or an unreadable CSV |
+| `2` | Invalid usage, e.g. missing `--type`, both `--url` and `--csv-list`, an unreadable CSV, or an invalid config file |
 | `130` | Cancelled with Ctrl+C |
 
 ---
@@ -267,10 +286,13 @@ ytdl-cli/
 │   ├── __init__.py
 │   ├── __main__.py     # lets you run `python -m ytdl`
 │   ├── cli.py          # argument parsing, validation and output (Typer)
-│   ├── csv_loader.py   # reading and filtering the CSV list
+│   ├── config.py       # reading and validating ~/.config/ytdl/config.toml
+│   ├── csv_loader.py   # reading CSV lists and writing the failed list
 │   └── downloader.py   # yt-dlp options, downloading, progress, results
 └── tests/
+    ├── conftest.py
     ├── test_cli.py
+    ├── test_config.py
     ├── test_csv_loader.py
     └── test_downloader.py
 ```

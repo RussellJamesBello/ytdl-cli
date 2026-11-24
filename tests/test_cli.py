@@ -344,3 +344,63 @@ def test_rerun_without_failures_removes_old_failed_list(tmp_path):
 def test_single_url_failure_does_not_write_failed_list(tmp_path):
     invoke("--url=https://youtu.be/bad", "--type=mp3")
     assert not (tmp_path / "ytdl-downloads" / "ytdl-failed.csv").exists()
+
+
+# --- config file ------------------------------------------------------------
+
+
+def test_config_file_provides_defaults(isolated_config, tmp_path):
+    isolated_config.write_text(
+        "audio_quality = 320\n"
+        "video_quality = 1080\n"
+        'save_path = "music"\n'
+        'name_template = "%(uploader)s/%(title)s"\n'
+    )
+
+    result = invoke("--url=https://youtu.be/abc", "--type=mp3")
+
+    assert result.exit_code == 0, result.output
+    settings = downloader().settings
+    assert (settings.audio_quality, settings.video_quality) == (320, 1080)
+    assert settings.save_path == Path("music")
+    assert settings.name_template == "%(uploader)s/%(title)s"
+    assert (tmp_path / "music").is_dir()
+
+
+def test_flags_override_config_file(isolated_config):
+    isolated_config.write_text('audio_quality = 320\nsave_path = "music"\nname_template = "%(id)s"\n')
+
+    invoke(
+        "--url=https://youtu.be/abc",
+        "--type=mp3",
+        "--audio-quality=128",
+        "--save-path=elsewhere",
+        "--name-template=%(title)s",
+    )
+
+    settings = downloader().settings
+    assert settings.audio_quality == 128
+    assert settings.save_path == Path("elsewhere")
+    assert settings.name_template == "%(title)s"
+
+
+def test_config_values_dont_trigger_mismatch_warnings(isolated_config):
+    isolated_config.write_text("audio_quality = 320\nvideo_quality = 1080\n")
+    for file_type in ("mp3", "mp4", "opus"):
+        result = invoke("--url=https://youtu.be/abc", f"--type={file_type}")
+        assert "Warning" not in result.output
+
+
+def test_invalid_config_file_stops_before_downloading(isolated_config):
+    isolated_config.write_text('type = "mp3"\n')
+
+    result = invoke("--url=https://youtu.be/abc", "--type=mp3")
+
+    assert result.exit_code == 2
+    assert "'type' can't have a default" in result.output
+    assert FakeDownloader.instances == []
+
+
+def test_help_mentions_config_file():
+    result = invoke("--help")
+    assert "~/.config/ytdl/config.toml" in result.output

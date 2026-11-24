@@ -6,13 +6,14 @@ import shlex
 from enum import StrEnum
 from importlib.metadata import version as package_version
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, TypeVar
 
 import typer
 from rich.console import Console
 from rich.markup import escape
 from yt_dlp.version import __version__ as yt_dlp_version
 
+from ytdl.config import ConfigError, load_config
 from ytdl.csv_loader import FAILED_LIST_NAME, CsvError, load_urls, remove_failed_list, save_failed_list
 from ytdl.downloader import (
     DEFAULT_NAME_TEMPLATE,
@@ -53,6 +54,11 @@ class VideoQuality(StrEnum):
 
 app = typer.Typer(add_completion=False)
 
+CONFIG_HELP = (
+    "Defaults for --audio-quality, --video-quality, --save-path and --name-template can be set in "
+    "~/.config/ytdl/config.toml (or the file $YTDL_CONFIG points to). Flags you pass override them."
+)
+
 
 def _show_version(value: bool) -> None:
     if value:
@@ -60,7 +66,7 @@ def _show_version(value: bool) -> None:
         raise typer.Exit()
 
 
-@app.command(help="Download YouTube videos as audio (MP3, M4A, Opus) or MP4 video.")
+@app.command(help="Download YouTube videos as audio (MP3, M4A, Opus) or MP4 video.", epilog=CONFIG_HELP)
 def ytdl(
     *,
     url: Annotated[
@@ -103,11 +109,17 @@ def ytdl(
         ),
     ] = None,
     save_path: Annotated[
-        Path,
-        typer.Option("--save-path", metavar="DIR", file_okay=False, help="Folder to save downloads in."),
-    ] = DEFAULT_SAVE_PATH,
+        Path | None,
+        typer.Option(
+            "--save-path",
+            metavar="DIR",
+            file_okay=False,
+            show_default=False,
+            help=f"Folder to save downloads in. Default: ./{DEFAULT_SAVE_PATH}.",
+        ),
+    ] = None,
     name_template: Annotated[
-        str,
+        str | None,
         typer.Option(
             "--name-template",
             metavar="TEMPLATE",
@@ -118,7 +130,7 @@ def ytdl(
                 f'Default: "{DEFAULT_NAME_TEMPLATE}".'
             ),
         ),
-    ] = DEFAULT_NAME_TEMPLATE,
+    ] = None,
     verbose: Annotated[
         bool,
         typer.Option("--verbose", help="Show yt-dlp's full output, for diagnosing failed downloads."),
@@ -135,6 +147,11 @@ def ytdl(
 ) -> None:
     console = Console(highlight=False)
     err_console = Console(stderr=True, highlight=False)
+
+    try:
+        config = load_config()
+    except ConfigError as error:
+        raise typer.BadParameter(str(error), param_hint="config file") from error
 
     if (url is None) == (csv_list is None):
         raise typer.BadParameter("pass exactly one of them.", param_hint="'--url' / '--csv-list'")
@@ -156,10 +173,11 @@ def ytdl(
         assert url is not None  # guaranteed by the exactly-one check above
         urls = [url.strip()]
 
-    try:
-        name_template = normalize_name_template(name_template)
-    except ValueError as error:
-        raise typer.BadParameter(str(error), param_hint="'--name-template'") from error
+    if name_template is not None:
+        try:
+            name_template = normalize_name_template(name_template)
+        except ValueError as error:
+            raise typer.BadParameter(str(error), param_hint="'--name-template'") from error
 
     if missing := missing_tools():
         err_console.print(
@@ -174,22 +192,28 @@ def ytdl(
             "or be limited to lower quality. Install one with: brew install deno",
         )
 
-    save_path = save_path.expanduser()
+    # A flag wins, then the config file, then the built-in default.
+    settings = Settings(
+        file_type=file_type.value,
+        audio_quality=_first(
+            int(audio_quality) if audio_quality else None, config.audio_quality, DEFAULT_AUDIO_QUALITY
+        ),
+        video_quality=_first(
+            int(video_quality) if video_quality else None, config.video_quality, DEFAULT_VIDEO_QUALITY
+        ),
+        save_path=_first(save_path.expanduser() if save_path else None, config.save_path, DEFAULT_SAVE_PATH),
+        name_template=_first(name_template, config.name_template, DEFAULT_NAME_TEMPLATE),
+        verbose=verbose,
+    )
+    save_path = settings.save_path
     try:
         save_path.mkdir(parents=True, exist_ok=True)
     except OSError as error:
+        source = "'--save-path'" if settings.save_path != config.save_path else f"save_path in {config.path}"
         raise typer.BadParameter(
-            f"Couldn't create {save_path}: {error.strerror}", param_hint="'--save-path'"
+            f"Couldn't create {save_path}: {error.strerror}", param_hint=source
         ) from error
 
-    settings = Settings(
-        file_type=file_type.value,
-        audio_quality=int(audio_quality.value) if audio_quality else DEFAULT_AUDIO_QUALITY,
-        video_quality=int(video_quality.value) if video_quality else DEFAULT_VIDEO_QUALITY,
-        save_path=save_path,
-        name_template=name_template,
-        verbose=verbose,
-    )
     downloader = Downloader(settings, console)
     bulk = csv_list is not None
 
@@ -212,6 +236,17 @@ def ytdl(
         _print_summary(console, results)
         _update_failed_list(console, err_console, results, settings)
     raise typer.Exit(1 if any(r.status is Status.FAILED for r in results) else 0)
+
+
+_T = TypeVar("_T")
+
+
+def _first(*values: _T | None) -> _T:
+    """The first value that was actually given."""
+    for value in values:
+        if value is not None:
+            return value
+    raise ValueError("no value given")
 
 
 def _warn(console: Console, message: str) -> None:
