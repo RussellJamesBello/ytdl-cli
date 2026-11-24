@@ -55,6 +55,13 @@ def write_csv(tmp_path, content):
 # --- argument validation ----------------------------------------------------
 
 
+def test_version_needs_no_other_options():
+    result = invoke("--version")
+    assert result.exit_code == 0
+    assert result.output.startswith("ytdl 0.1.0 (yt-dlp 20")
+    assert FakeDownloader.instances == []
+
+
 def test_requires_url_or_csv():
     result = invoke("--type=mp3")
     assert result.exit_code == 2

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from importlib.metadata import version as package_version
 from pathlib import Path
 from typing import Annotated
 
 import typer
 from rich.console import Console
 from rich.markup import escape
+from yt_dlp.version import __version__ as yt_dlp_version
 
 from ytdl.csv_loader import CsvError, load_urls
 from ytdl.downloader import Downloader, Result, Settings, Status, has_js_runtime, missing_tools
@@ -37,6 +39,12 @@ class VideoQuality(StrEnum):
 
 
 app = typer.Typer(add_completion=False)
+
+
+def _show_version(value: bool) -> None:
+    if value:
+        typer.echo(f"ytdl {package_version('ytdl-cli')} (yt-dlp {yt_dlp_version})")
+        raise typer.Exit()
 
 
 @app.command(help="Download YouTube videos as MP3 or MP4.")
@@ -81,6 +89,15 @@ def ytdl(
         Path,
         typer.Option("--save-path", metavar="DIR", file_okay=False, help="Folder to save downloads in."),
     ] = DEFAULT_SAVE_PATH,
+    version: Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            callback=_show_version,
+            is_eager=True,
+            help="Show the ytdl and yt-dlp versions and exit.",
+        ),
+    ] = False,
 ) -> None:
     console = Console(highlight=False)
     err_console = Console(stderr=True, highlight=False)

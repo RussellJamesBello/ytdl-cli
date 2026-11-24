@@ -86,6 +86,7 @@ ytdl (--url=<URL> | --csv-list=<FILE>) --type=<mp3|mp4> [options]
 | `--audio-quality` | `320`, `256`, `192`, `128` | `192` | MP3 bitrate in kbps. Only applies to `--type=mp3`. |
 | `--video-quality` | `1080`, `720`, `360` | `720` | Maximum video height in pixels. Only applies to `--type=mp4`. |
 | `--save-path` | Directory path | `./ytdl-downloads` | Where files are saved. Created if it doesn't exist. |
+| `--version` | — | — | Print the ytdl and yt-dlp versions, then exit. |
 
 You must pass **exactly one** of `--url` or `--csv-list`. Both `--flag=value` and `--flag value` work.
 
