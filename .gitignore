@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+dist/
+build/
+*.egg-info/
+
+# Default download folder when running from the repo
+ytdl-downloads/
+
+# macOS
+.DS_Store

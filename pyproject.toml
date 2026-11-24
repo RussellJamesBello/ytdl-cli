@@ -1,0 +1,29 @@
+[project]
+name = "ytdl-cli"
+version = "0.1.0"
+description = "Download YouTube videos as MP3 or MP4, one at a time or in bulk from a CSV file."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "rich>=15.0.0",
+    "typer>=0.29.2",
+    "yt-dlp[default]>=2026.11.23",
+]
+
+[project.scripts]
+ytdl = "ytdl.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.9,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "ytdl"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
