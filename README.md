@@ -17,6 +17,7 @@ ytdl --url="https://www.youtube.com/watch?v=VIDEO_ID" --type=mp3
 - Download a single video, or a whole list of URLs from a CSV file
 - MP3 output at 128, 192, 256 or 320 kbps
 - M4A or Opus output with YouTube's original audio copied as is: smaller files, no quality loss
+- Audio files come tagged with title, artist, date and cover art, so music apps display them properly
 - MP4 output at 360p, 720p or 1080p, using H.264 + AAC so it plays on any device
 - Falls back to the best available resolution if the one you asked for doesn't exist
 - Skips files you've already downloaded, so re-running a batch only fetches what's missing
@@ -154,6 +155,8 @@ https://www.youtube.com/watch?v=VIDEO_ID_4
 ## Behaviour details
 
 **File names.** Files are named after the video title, e.g. `My Favourite Song.mp3`. Characters that aren't allowed in file names are cleaned up.
+
+**Tags and cover art.** Audio files (MP3, M4A, Opus) are tagged with the video title, the artist (the channel name when YouTube doesn't list one), the upload date and the video's URL. The video thumbnail is embedded as cover art.
 
 **Existing files.** If a file with the same name already exists in the save folder, that video is skipped and reported as already downloaded. Nothing is ever overwritten.
 

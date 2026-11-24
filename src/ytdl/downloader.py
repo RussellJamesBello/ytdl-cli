@@ -43,6 +43,8 @@ AUDIO_FORMATS = {
 
 _POSTPROCESSOR_ACTIVITY = {
     "ExtractAudio": "extracting audio",
+    "Metadata": "adding tags",
+    "EmbedThumbnail": "adding cover art",
     "Merger": "merging video and audio",
 }
 
@@ -97,13 +99,19 @@ def build_options(settings: Settings) -> dict[str, Any]:
         options |= {
             "format": AUDIO_FORMATS[settings.file_type],
             "final_ext": settings.file_type,
+            # The thumbnail becomes the cover art and is deleted once embedded.
+            "writethumbnail": True,
             "postprocessors": [
                 {
                     "key": "FFmpegExtractAudio",
                     "preferredcodec": settings.file_type,
                     # Only MP3 is re-encoded, so only MP3 has a bitrate to choose.
                     "preferredquality": str(settings.audio_quality) if settings.file_type == "mp3" else None,
-                }
+                },
+                # Title, artist (the channel if YouTube has no artist), upload date, and
+                # the video URL as a comment. Runs after conversion so the tags survive.
+                {"key": "FFmpegMetadata", "add_metadata": True},
+                {"key": "EmbedThumbnail"},
             ],
         }
     else:

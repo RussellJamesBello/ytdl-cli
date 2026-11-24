@@ -27,9 +27,11 @@ def test_mp3_options(tmp_path):
 
     assert options["format"] == "bestaudio/best"
     assert options["final_ext"] == "mp3"
-    assert options["postprocessors"] == [
-        {"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "320"}
-    ]
+    assert options["postprocessors"][0] == {
+        "key": "FFmpegExtractAudio",
+        "preferredcodec": "mp3",
+        "preferredquality": "320",
+    }
     assert options["outtmpl"]["default"] == str(tmp_path / "%(title)s.%(ext)s")
     assert options["noplaylist"] is True
 
@@ -47,12 +49,26 @@ def test_m4a_and_opus_keep_original_audio(tmp_path, file_type, format_spec):
     }
 
 
+@pytest.mark.parametrize("file_type", ["mp3", "m4a", "opus"])
+def test_audio_gets_tags_and_cover_art_after_conversion(tmp_path, file_type):
+    options = build_options(settings(tmp_path, file_type))
+
+    assert options["writethumbnail"] is True
+    assert [pp["key"] for pp in options["postprocessors"]] == [
+        "FFmpegExtractAudio",
+        "FFmpegMetadata",
+        "EmbedThumbnail",
+    ]
+    assert options["postprocessors"][1]["add_metadata"] is True
+
+
 def test_mp4_options_prefer_h264_aac_up_to_requested_resolution(tmp_path):
     options = build_options(settings(tmp_path, "mp4", video_quality=1080))
 
     assert options["format_sort"] == ["vcodec:h264", "res:1080", "acodec:aac"]
     assert options["merge_output_format"] == "mp4"
     assert "postprocessors" not in options
+    assert "writethumbnail" not in options
 
 
 def test_quiet_by_default(tmp_path):
