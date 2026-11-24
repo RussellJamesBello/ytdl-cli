@@ -15,6 +15,7 @@ from yt_dlp.version import __version__ as yt_dlp_version
 from ytdl.csv_loader import CsvError, load_urls
 from ytdl.downloader import (
     DEFAULT_NAME_TEMPLATE,
+    Cancelled,
     Downloader,
     Result,
     Settings,
@@ -198,8 +199,12 @@ def ytdl(
             result = downloader.download(video_url, label)
             _print_result(console, result, label, save_path)
             results.append(result)
-    except KeyboardInterrupt:
-        err_console.print("\nCancelled.")
+    except KeyboardInterrupt as interrupt:
+        removed = interrupt.removed if isinstance(interrupt, Cancelled) else []
+        cleanup = (
+            f" Removed {len(removed)} partial file{'s' if len(removed) != 1 else ''}." if removed else ""
+        )
+        err_console.print(f"\nCancelled.{cleanup}")
         raise typer.Exit(130) from None
 
     if bulk:

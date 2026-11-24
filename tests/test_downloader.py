@@ -6,6 +6,7 @@ from rich.console import Console
 from yt_dlp.utils import DownloadError
 
 from ytdl.downloader import (
+    Cancelled,
     Downloader,
     Settings,
     Status,
@@ -299,6 +300,41 @@ def test_prints_resolution_notice_with_label(tmp_path, fake_ydl):
 
     assert result.status is Status.DOWNLOADED
     assert "[1/2] ! 1080p isn't available; downloading 240p instead." in output
+
+
+def test_ctrl_c_removes_only_this_downloads_partial_files(tmp_path, fake_ydl, monkeypatch):
+    keep = [tmp_path / "Some Song.mp4", tmp_path / "Some Songs.mp3", tmp_path / "Other.webm.part"]
+    for file in keep:
+        file.touch()
+
+    def interrupted_download(self, info, download):
+        (tmp_path / "Some Song.webm.part").write_bytes(b"partial")
+        (tmp_path / "Some Song.webp").write_bytes(b"thumbnail")
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(fake_ydl, "process_ie_result", interrupted_download)
+
+    with pytest.raises(Cancelled) as cancelled:
+        run(tmp_path, fake_ydl)
+
+    assert [file.name for file in cancelled.value.removed] == ["Some Song.webm.part", "Some Song.webp"]
+    assert sorted(tmp_path.iterdir()) == sorted(keep)
+
+
+def test_ctrl_c_removes_subfolder_it_created(tmp_path, fake_ydl, monkeypatch):
+    fake_ydl.info = {"title": "Song", "uploader": "Band", "ext": "webm"}
+
+    def interrupted_download(self, info, download):
+        (tmp_path / "Band").mkdir()
+        (tmp_path / "Band" / "Song.webm.part").touch()
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(fake_ydl, "process_ie_result", interrupted_download)
+
+    with pytest.raises(Cancelled):
+        run(tmp_path, fake_ydl, name_template="%(uploader)s/%(title)s")
+
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_download_error_becomes_failed_result(tmp_path, fake_ydl):

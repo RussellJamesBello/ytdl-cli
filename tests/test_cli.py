@@ -5,7 +5,7 @@ import pytest
 from typer.testing import CliRunner
 
 from ytdl import cli
-from ytdl.downloader import Result, Status
+from ytdl.downloader import Cancelled, Result, Status
 
 runner = CliRunner()
 
@@ -264,6 +264,28 @@ def test_bulk_keeps_going_and_summarises(tmp_path):
     assert "[1/3] ✓ one.mp4" in result.output
     assert "[3/3] ✓ two.mp4" in result.output
     assert "Done: 2 downloaded, 0 skipped (already exists), 1 failed" in result.output
+
+
+def test_ctrl_c_reports_cleanup(monkeypatch, tmp_path):
+    def download(self, url, label=""):
+        raise Cancelled([tmp_path / "a.part", tmp_path / "a.webp"])
+
+    monkeypatch.setattr(FakeDownloader, "download", download)
+    result = invoke("--url=https://youtu.be/abc", "--type=mp3")
+
+    assert result.exit_code == 130
+    assert "Cancelled. Removed 2 partial files." in result.output
+
+
+def test_ctrl_c_between_downloads(monkeypatch):
+    def download(self, url, label=""):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(FakeDownloader, "download", download)
+    result = invoke("--url=https://youtu.be/abc", "--type=mp3")
+
+    assert result.exit_code == 130
+    assert result.output.strip().endswith("Cancelled.")
 
 
 def test_bulk_all_succeed(tmp_path):

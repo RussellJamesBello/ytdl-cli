@@ -186,6 +186,8 @@ Use `/` to sort files into subfolders of the save folder, e.g. `%(uploader)s/%(t
 
 **Options that don't apply.** Passing `--audio-quality` with anything other than `--type=mp3`, or `--video-quality` with anything other than `--type=mp4`, prints a warning and has no effect. The download still runs.
 
+**Cancelling.** Press Ctrl+C at any time. The half-finished files for the video in progress (`.part` files, separate video/audio streams, the thumbnail) are deleted, so a rerun starts clean. Finished downloads, and any files that were already there, are left alone.
+
 **Bulk downloads.** Videos are downloaded one at a time, in the order they appear in the file. If one fails (private, removed, network error), the error is logged and the tool moves on to the next. A summary is printed at the end:
 
 ```
@@ -201,6 +203,7 @@ Done: 8 downloaded, 1 skipped (already exists), 2 failed
 | `0` | Every video was downloaded or already existed |
 | `1` | At least one video failed to download, or ffmpeg isn't installed |
 | `2` | Invalid usage, e.g. missing `--type`, both `--url` and `--csv-list`, or an unreadable CSV |
+| `130` | Cancelled with Ctrl+C |
 
 ---
 

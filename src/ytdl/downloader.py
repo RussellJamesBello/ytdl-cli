@@ -66,6 +66,14 @@ class Settings:
     verbose: bool = False  # show yt-dlp's own output instead of ytdl's progress bar
 
 
+class Cancelled(KeyboardInterrupt):
+    """Ctrl+C during a download, after its partial files were removed."""
+
+    def __init__(self, removed: list[Path]) -> None:
+        super().__init__()
+        self.removed = removed
+
+
 @dataclass(frozen=True)
 class Result:
     url: str
@@ -234,14 +242,46 @@ class Downloader:
                 if note := resolution_note(info, self.settings):
                     progress.console.print(f"{escape(label)}[yellow]![/yellow] {escape(note)}")
                 hooks.title = info.get("title") or url
-                # Reuse the info we already fetched rather than asking YouTube again.
-                ydl.process_ie_result(ydl.sanitize_info(info, remove_private_keys=True), download=True)
+                before = _snapshot(path)
+                try:
+                    # Reuse the info we already fetched rather than asking YouTube again.
+                    ydl.process_ie_result(ydl.sanitize_info(info, remove_private_keys=True), download=True)
+                except KeyboardInterrupt:
+                    raise Cancelled(_remove_partial_files(path, before)) from None
         except DownloadError as error:
             return Result(url, Status.FAILED, error=clean_error(str(error)))
         except Exception as error:  # One bad video shouldn't stop a whole batch.
             return Result(url, Status.FAILED, error=str(error) or type(error).__name__)
 
         return Result(url, Status.DOWNLOADED, path)
+
+
+def _related_files(path: Path) -> set[Path]:
+    # yt-dlp's working files share the final file's name up to the first dot, e.g.
+    # "Song.webm.part", "Song.f137.mp4.part", "Song.temp.m4a", "Song.webp".
+    if not path.parent.is_dir():
+        return set()
+    prefix = f"{path.stem}."
+    return {file for file in path.parent.iterdir() if file.name.startswith(prefix)}
+
+
+def _snapshot(path: Path) -> tuple[bool, set[Path]]:
+    return path.parent.is_dir(), _related_files(path)
+
+
+def _remove_partial_files(path: Path, before: tuple[bool, set[Path]]) -> list[Path]:
+    """Delete files this download created, leaving anything that was already there."""
+    folder_existed, existing = before
+    removed = []
+    for file in sorted(_related_files(path) - existing):
+        with contextlib.suppress(OSError):
+            file.unlink()
+            removed.append(file)
+    if not folder_existed:
+        # A subfolder made for this download by --name-template; only removed if empty.
+        with contextlib.suppress(OSError):
+            path.parent.rmdir()
+    return removed
 
 
 class _ProgressHooks:
