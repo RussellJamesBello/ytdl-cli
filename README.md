@@ -201,6 +201,9 @@ mise install           # optional: installs the uv version pinned in mise.toml
 uv sync                # create the virtualenv and install dependencies
 uv run ytdl --help     # run the CLI from source
 uv run pytest          # run the tests (these don't hit the network)
+uv run ruff check      # lint
+uv run ruff format     # auto-format
+uv run mypy            # type-check
 ```
 
 Project layout:

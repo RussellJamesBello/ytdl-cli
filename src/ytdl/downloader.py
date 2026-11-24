@@ -172,9 +172,11 @@ class Downloader:
             with progress, contextlib.redirect_stderr(io.StringIO()), self._ydl_class(options) as ydl:
                 info = ydl.extract_info(url, download=False)
                 if info.get("_type") == "playlist" or "entries" in info:
-                    return Result(url, Status.FAILED, error=(
-                        "This is a playlist or channel link; ytdl only downloads single videos."
-                    ))
+                    return Result(
+                        url,
+                        Status.FAILED,
+                        error=("This is a playlist or channel link; ytdl only downloads single videos."),
+                    )
                 if info.get("is_live"):
                     return Result(url, Status.FAILED, error="Live streams can't be downloaded.")
 

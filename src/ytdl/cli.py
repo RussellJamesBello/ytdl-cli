@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
 
@@ -18,19 +18,19 @@ DEFAULT_VIDEO_QUALITY = 720
 DEFAULT_SAVE_PATH = Path("ytdl-downloads")
 
 
-class FileType(str, Enum):
+class FileType(StrEnum):
     MP3 = "mp3"
     MP4 = "mp4"
 
 
-class AudioQuality(str, Enum):
+class AudioQuality(StrEnum):
     KBPS_320 = "320"
     KBPS_256 = "256"
     KBPS_192 = "192"
     KBPS_128 = "128"
 
 
-class VideoQuality(str, Enum):
+class VideoQuality(StrEnum):
     P1080 = "1080"
     P720 = "720"
     P360 = "360"
@@ -101,6 +101,7 @@ def ytdl(
         except CsvError as error:
             raise typer.BadParameter(str(error), param_hint="'--csv-list'") from error
     else:
+        assert url is not None  # guaranteed by the exactly-one check above
         urls = [url.strip()]
 
     if missing := missing_tools():
@@ -120,7 +121,9 @@ def ytdl(
     try:
         save_path.mkdir(parents=True, exist_ok=True)
     except OSError as error:
-        raise typer.BadParameter(f"Couldn't create {save_path}: {error.strerror}", param_hint="'--save-path'")
+        raise typer.BadParameter(
+            f"Couldn't create {save_path}: {error.strerror}", param_hint="'--save-path'"
+        ) from error
 
     settings = Settings(
         file_type=file_type.value,
@@ -140,7 +143,7 @@ def ytdl(
             results.append(result)
     except KeyboardInterrupt:
         err_console.print("\nCancelled.")
-        raise typer.Exit(130)
+        raise typer.Exit(130) from None
 
     if bulk:
         _print_summary(console, results)
@@ -153,10 +156,11 @@ def _warn(console: Console, message: str) -> None:
 
 def _print_result(console: Console, result: Result, label: str) -> None:
     label = escape(label)
+    name = escape(result.path.name if result.path else result.url)
     if result.status is Status.DOWNLOADED:
-        console.print(f"{label}[green]✓[/green] {escape(result.path.name)}")
+        console.print(f"{label}[green]✓[/green] {name}")
     elif result.status is Status.SKIPPED:
-        console.print(f"{label}[dim]•[/dim] {escape(result.path.name)} [dim]already exists, skipped[/dim]")
+        console.print(f"{label}[dim]•[/dim] {name} [dim]already exists, skipped[/dim]")
     else:
         console.print(f"{label}[red]✗[/red] {escape(result.url)} [red]— {escape(result.error or '')}[/red]")
 
@@ -168,7 +172,8 @@ def _print_summary(console: Console, results: list[Result]) -> None:
 
     console.print()
     console.print(
-        f"[bold]Done:[/bold] {downloaded} downloaded, {skipped} skipped (already exists), {len(failed)} failed"
+        f"[bold]Done:[/bold] {downloaded} downloaded, {skipped} skipped (already exists), "
+        f"{len(failed)} failed"
     )
     for result in failed:
         console.print(f"  [red]✗[/red] {escape(result.url)} — {escape(result.error or '')}")

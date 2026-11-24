@@ -1,5 +1,5 @@
 import io
-from pathlib import Path
+from typing import Any, ClassVar
 
 import pytest
 from rich.console import Console
@@ -69,6 +69,7 @@ def test_resolution_note(tmp_path, info, expected):
     if expected is None:
         assert note is None
     else:
+        assert note is not None
         assert expected in note
 
 
@@ -85,7 +86,8 @@ def test_no_resolution_note_for_mp3(tmp_path):
         ("ERROR: [youtube] dQw4w9-WgXc: Video unavailable", "Video unavailable"),
         ("\x1b[0;31mERROR:\x1b[0m [youtube] abc: Private video", "Private video"),
         (
-            "ERROR: [youtube] abc: Sign in to confirm you're not a bot. Use --cookies-from-browser or --cookies",
+            "ERROR: [youtube] abc: Sign in to confirm you're not a bot. "
+            "Use --cookies-from-browser or --cookies",
             "Sign in to confirm you're not a bot.",
         ),
         (
@@ -106,9 +108,9 @@ def test_clean_error(raw, expected):
 class FakeYoutubeDL:
     """Stands in for yt_dlp.YoutubeDL. Configure the class attributes per test."""
 
-    info: dict = {}
-    error: Exception | None = None
-    downloads: list[dict] = []
+    info: ClassVar[dict[str, Any]] = {}
+    error: ClassVar[Exception | None] = None
+    downloads: ClassVar[list[dict[str, Any]]] = []
 
     def __init__(self, options):
         self.options = options

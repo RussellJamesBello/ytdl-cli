@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 from typer.testing import CliRunner
@@ -12,7 +13,7 @@ runner = CliRunner()
 class FakeDownloader:
     """Records what the CLI asked for. URLs containing 'bad' fail."""
 
-    instances: list["FakeDownloader"] = []
+    instances: ClassVar[list["FakeDownloader"]] = []
 
     def __init__(self, settings, console):
         self.settings = settings
@@ -23,7 +24,8 @@ class FakeDownloader:
         self.calls.append((url, label))
         if "bad" in url:
             return Result(url, Status.FAILED, error="Video unavailable")
-        return Result(url, Status.DOWNLOADED, self.settings.save_path / f"{url[-3:]}.{self.settings.file_type}")
+        path = self.settings.save_path / f"{url[-3:]}.{self.settings.file_type}"
+        return Result(url, Status.DOWNLOADED, path)
 
 
 @pytest.fixture(autouse=True)
@@ -96,7 +98,8 @@ def test_missing_csv_file():
 
 
 def test_csv_without_urls(tmp_path):
-    result = invoke(f"--csv-list={write_csv(tmp_path, 'url\n# nothing\n')}", "--type=mp3")
+    csv_path = write_csv(tmp_path, "url\n# nothing\n")
+    result = invoke(f"--csv-list={csv_path}", "--type=mp3")
     assert result.exit_code == 2
     assert "No URLs found" in result.output
 
@@ -133,10 +136,14 @@ def test_defaults(tmp_path):
 
 def test_explicit_settings(tmp_path):
     result = invoke(
-        "--url", "https://youtu.be/abc",
-        "--type", "MP4",
-        "--video-quality", "1080",
-        "--save-path", str(tmp_path / "out" / "nested"),
+        "--url",
+        "https://youtu.be/abc",
+        "--type",
+        "MP4",
+        "--video-quality",
+        "1080",
+        "--save-path",
+        str(tmp_path / "out" / "nested"),
     )
 
     assert result.exit_code == 0, result.output
