@@ -134,6 +134,9 @@ def build_options(settings: Settings) -> dict[str, Any]:
             # The thumbnail becomes the cover art and is deleted once embedded.
             "writethumbnail": True,
             "postprocessors": [
+                # YouTube thumbnails are WebP, which yt-dlp would embed as a lossless PNG
+                # several times the size. JPEG is what music apps expect for cover art.
+                {"key": "FFmpegThumbnailsConvertor", "format": "jpg", "when": "before_dl"},
                 {
                     "key": "FFmpegExtractAudio",
                     "preferredcodec": settings.file_type,

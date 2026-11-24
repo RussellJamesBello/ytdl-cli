@@ -29,7 +29,7 @@ def test_mp3_options(tmp_path):
 
     assert options["format"] == "bestaudio/best"
     assert options["final_ext"] == "mp3"
-    assert options["postprocessors"][0] == {
+    assert options["postprocessors"][1] == {
         "key": "FFmpegExtractAudio",
         "preferredcodec": "mp3",
         "preferredquality": "320",
@@ -44,7 +44,7 @@ def test_m4a_and_opus_keep_original_audio(tmp_path, file_type, format_spec):
 
     assert options["format"].startswith(f"bestaudio{format_spec}/")
     assert options["final_ext"] == file_type
-    assert options["postprocessors"][0] == {
+    assert options["postprocessors"][1] == {
         "key": "FFmpegExtractAudio",
         "preferredcodec": file_type,
         "preferredquality": None,
@@ -57,11 +57,17 @@ def test_audio_gets_tags_and_cover_art_after_conversion(tmp_path, file_type):
 
     assert options["writethumbnail"] is True
     assert [pp["key"] for pp in options["postprocessors"]] == [
+        "FFmpegThumbnailsConvertor",
         "FFmpegExtractAudio",
         "FFmpegMetadata",
         "EmbedThumbnail",
     ]
-    assert options["postprocessors"][1]["add_metadata"] is True
+    assert options["postprocessors"][0] == {
+        "key": "FFmpegThumbnailsConvertor",
+        "format": "jpg",
+        "when": "before_dl",
+    }
+    assert options["postprocessors"][2]["add_metadata"] is True
 
 
 def test_mp4_options_prefer_h264_aac_up_to_requested_resolution(tmp_path):
